@@ -26,6 +26,17 @@ Follow these steps to get the tool running locally
   - Redis service
 - Then, run `./scripts/run_dev_env.sh` to see the tool on your browser at `http://0.0.0.0:8000/`.
 
+### On Toolforge
+
+Use Toolforge buildpacks and the checked-in `Procfile` instead of manually running `pip install`:
+
+```bash
+cd ..
+./scripts/setup_all.sh --toolforge
+```
+
+This triggers `toolforge build start .` from `bucksaltbot/`, then restarts webservice/jobs.
+
 ### With Docker
 
 The following points summarise the docker configuration of the project:
