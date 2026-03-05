@@ -107,6 +107,16 @@ state = AppState()
 app = FastAPI(title="Toolforge Commons Async Mass Rollback")
 
 
+def _get_state() -> AppState:
+    """Return the module-level AppState.
+
+    auth_callback accepts a ``state`` query-parameter (the OAuth CSRF token)
+    which shadows the module-level ``state`` object inside the function body.
+    Using this helper avoids that name collision.
+    """
+    return state
+
+
 class RollbackItem(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     user: str = Field(min_length=1, max_length=255)
@@ -208,7 +218,8 @@ async def auth_callback(code: str, state_token: str | None = None, state: str | 
     if not incoming_state:
         raise HTTPException(status_code=400, detail="Missing OAuth state")
 
-    expires = state.oauth_states.pop(incoming_state, 0)
+    app_state = _get_state()
+    expires = app_state.oauth_states.pop(incoming_state, 0)
     if expires < time.time():
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
 
@@ -235,7 +246,7 @@ async def auth_callback(code: str, state_token: str | None = None, state: str | 
         raise HTTPException(status_code=403, detail="Account does not have rollback right on Commons")
 
     sid = secrets.token_urlsafe(32)
-    state.sessions[sid] = Session(
+    app_state.sessions[sid] = Session(
         session_id=sid,
         access_token=access_token,
         username=username,
