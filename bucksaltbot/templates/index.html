@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+    {% if not username %}
+        <h2>Wikimedia Login</h2>
+        <p>The match and split server allows you to take existing text and automagically match the text and split it into the correct <code>Page:</code> namespace pages.</p>
+        <a class="cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--action-progressive" href="/login">Login with Wikimedia to continue</a>
+    {% else %}
+        <h2>Welcome, {{ username }}</h2>
+        <p>The match and split server allows you to take existing text from <a href="https://en.wikipedia.org/wiki/Internet_Archive">Internet Archive</a> or other <a href="https://en.wikipedia.org/wiki/Public domain">public domain sources</a> and automagically match the text and split it into the correct <code>Page:</code> namspace pages.</p>
+        <p>You can refer to the <a href="https://en.wikisource.org/wiki/Help:Match and split">English Wikisource documentation</a> for a previous iteration of the tool. There are two endpoints, a <a href="/match">match endpoint</a> and <a href="/split">split endpoint</a> to submit jobs.</p>
+        <p>To see all jobs that have previously been submitted by all users, you can use <a href="/all-status">this link</a>.</p>
+    {% endif %}
+{% endblock %}
