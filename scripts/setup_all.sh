@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 INSTALL_DEPS=1
+TARGET_ENV="local"
 
 usage() {
   cat <<USAGE
@@ -13,6 +14,8 @@ Set up the monorepo rollback project (bucksaltbot) and userscript scaffolding.
 
 Options:
   --no-install-deps   Create config/env scaffolding only; skip npm/pip installs
+  --toolforge         Prepare bucksaltbot for Toolforge and deploy via Procfile build
+  --local             Force local dependency installation flow (default)
   -h, --help          Show this help
 USAGE
 }
@@ -25,6 +28,15 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-install-deps)
       INSTALL_DEPS=0
+      shift
+      ;;
+    --toolforge)
+      TARGET_ENV="toolforge"
+      INSTALL_DEPS=0
+      shift
+      ;;
+    --local)
+      TARGET_ENV="local"
       shift
       ;;
     -h|--help)
@@ -57,7 +69,23 @@ setup_bucksaltbot() {
   ensure_file "$dir/.env.tmpl" "$dir/.env"
   ensure_file "$dir/replica.my.cnf.tmpl" "$dir/replica.my.cnf"
 
-  if [[ "$INSTALL_DEPS" -eq 1 ]]; then
+  if [[ "$TARGET_ENV" == "toolforge" ]]; then
+    if ! command -v toolforge >/dev/null 2>&1; then
+      echo "Toolforge CLI is required for --toolforge mode." >&2
+      exit 1
+    fi
+    if [[ ! -f "$dir/Procfile" ]]; then
+      echo "Missing bucksaltbot/Procfile required for Toolforge deployment." >&2
+      exit 1
+    fi
+    log "Deploying bucksaltbot using Toolforge buildpacks and Procfile"
+    (cd "$dir" && toolforge build start .)
+    log "Restarting Toolforge webservice and loading job definitions"
+    (cd "$dir" && toolforge webservice restart)
+    if [[ -f "$dir/jobs.yaml" ]]; then
+      (cd "$dir" && toolforge jobs load jobs.yaml)
+    fi
+  elif [[ "$INSTALL_DEPS" -eq 1 ]]; then
     (cd "$dir" && npm ci)
     (cd "$dir" && python3 -m pip install -r requirements.txt)
   else
@@ -76,5 +104,9 @@ setup_userscript
 
 log "Done."
 log "Next steps:"
-log "  - bucksaltbot: start Redis + MariaDB, then run ./bucksaltbot/scripts/run_dev_env.sh"
+if [[ "$TARGET_ENV" == "toolforge" ]]; then
+  log "  - bucksaltbot: verify Toolforge jobs are healthy via 'toolforge jobs list'"
+else
+  log "  - bucksaltbot: start Redis + MariaDB, then run ./bucksaltbot/scripts/run_dev_env.sh"
+fi
 log "  - userscript: set TOOL_ENDPOINT in ./unbuckbot/userscript/mass-rollback.user.js and install it in your browser"
