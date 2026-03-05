@@ -1,1 +1,2 @@
+build: python3 -m pip install -r requirements.txt
 web: ./toolforge/start.sh
