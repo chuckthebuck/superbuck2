@@ -17,6 +17,8 @@ Quick start:
 
 ```bash
 ./scripts/setup_all.sh
+# Toolforge deploy using Procfile/buildpacks
+./scripts/setup_all.sh --toolforge
 ```
 
 ## Continuous integration

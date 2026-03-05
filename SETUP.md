@@ -19,7 +19,6 @@ Useful flags:
 
 ```bash
 ./scripts/setup_all.sh --no-install-deps
-./scripts/setup_all.sh --no-venv
 ```
 
 ## 3) Setup: bucksaltbot
@@ -42,6 +41,16 @@ Useful flags:
    ```bash
    ./scripts/run_dev_env.sh
    ```
+
+### Toolforge deployment (Procfile/buildpacks)
+
+Use the Toolforge mode in the installer so deployment is done through Toolforge buildpacks and `bucksaltbot/Procfile` rather than direct `pip` installs:
+
+```bash
+./scripts/setup_all.sh --toolforge
+```
+
+This runs `toolforge build start .`, restarts the webservice, and loads `jobs.yaml` when available.
 
 ## 4) Setup: Commons userscript
 
