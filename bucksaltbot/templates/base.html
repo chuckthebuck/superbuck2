@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Match submission form</title>
+  <title>Rollback queue</title>
   {%- if not is_production %}
     <script type="module" src="{{ asset('@vite/client') }}"></script>
   {%- endif %}
@@ -12,105 +12,55 @@
 <body>
   <header class="header">
     <span class="logo">
-        <b>Match</b>
-        &
-        <b>Split</b>
+      <b>Rollback</b>
+      &
+      <b>Queue</b>
     </span>
-	{% if username %}
+    {% if username %}
     <span>{{ username }}</span>
     <a href="/logout" class="logout">Logout</a>
-	{% endif %}
+    {% endif %}
   </header>
   <div class="container">
-		<div class="cdx-message cdx-message--block cdx-message--notice top-message" aria-live="polite">
-		<span class="cdx-message__icon"></span>
-		<div class="cdx-message__content">
-			Submiting a job will trigger <a href="https://meta.wikimedia.org/wiki/User:SodiumBot">SodiumBot</a> to make edits on your behalf. However, you are responsible for verifying the results.
-		</div>
-		</div>
+    <div class="cdx-message cdx-message--block cdx-message--notice top-message" aria-live="polite">
+      <span class="cdx-message__icon"></span>
+      <div class="cdx-message__content">
+        Submitting a job will trigger your configured rollback bot account on Wikimedia Commons. You are responsible for reviewing results.
+      </div>
+    </div>
     <div class="cdx-tabs">
-		<!-- Header with tab buttons -->
-		<form class="cdx-tabs__header" method="get" action="/goto">
-			<!-- List of tabs. -->
-			<div class="cdx-tabs__list" tabindex="-1" role="tablist">
-				<!-- Tab list item. -->
-				{% if type == 'index' %}
-					<button
-							id="form-tabs-3-label"
-							class="cdx-tabs__list__item"
-							role="tab"
-							aria-selected="true"
-							aria-controls="form-tabs-3"
-							value="documentation"
-							name="tab"
-						>
-							Start page
-					</button>
-				{% endif %}
-				<button
-					id="form-tabs-1-label"
-					class="cdx-tabs__list__item"
-					role="tab"
-					aria-selected="{% if type == 'match' %}true{% else %}false{% endif %}"
-					aria-controls="form-tabs-1"
-					value="match"
-					name="tab"
-				>
-					Match
-				</button>
-				<button
-					id="form-tabs-2-label"
-					class="cdx-tabs__list__item"
-					role="tab"
-					aria-selected="{% if type == 'split' %}true{% else %}false{% endif %}"
-					aria-controls="form-tabs-2"
-					value="split"
-					name="tab"
-				>
-					Split
-				</button>
-				<button
-					id="form-tabs-3-label"
-					class="cdx-tabs__list__item"
-					role="tab"
-					aria-selected="{% if type == 'status' %}true{% else %}false{% endif %}"
-					aria-controls="form-tabs-3"
-					value="status"
-					name="tab"
-				>
-					Status
-            </button>
-            <button
-					id="form-tabs-3-label"
-					class="cdx-tabs__list__item"
-					role="tab"
-					aria-selected="false"
-					aria-controls="form-tabs-3"
-					value="documentation"
-					name="tab"
-				>
-					Documentation
-            </button>
-			{% if type == 'logs' %}
-			<button
-					id="form-tabs-3-label"
-					class="cdx-tabs__list__item"
-					role="tab"
-					aria-selected="true"
-					aria-controls="form-tabs-3"
-					value="documentation"
-					name="tab"
-				>
-					{{ log_name }}
-            </button>
-			{% endif %}
-			</div>
-		</form>
-		{% block content %}
-		{% endblock %}
-	</div>
-</div>
-<footer class="footer">
-	<p>Originally developed by <a href="https://en.wikisource.org/wiki/User:Phe">Phe</a>, currently maintained by <a href="https://en.wikisource.org/wiki/User:Sohom_Datta">Sohom Datta</a>, hosted on <a href="https://toolforge.org">Wikimedia Toolforge</a>.</p>
+      <form class="cdx-tabs__header" method="get" action="/goto">
+        <div class="cdx-tabs__list" tabindex="-1" role="tablist">
+          <button
+            id="form-tabs-rollback-label"
+            class="cdx-tabs__list__item"
+            role="tab"
+            aria-selected="{% if type == 'rollback-queue' %}true{% else %}false{% endif %}"
+            aria-controls="form-tabs-rollback"
+            value="rollback-queue"
+            name="tab"
+          >
+            Rollback Queue
+          </button>
+          <button
+            id="form-tabs-docs-label"
+            class="cdx-tabs__list__item"
+            role="tab"
+            aria-selected="false"
+            aria-controls="form-tabs-docs"
+            value="documentation"
+            name="tab"
+          >
+            Documentation
+          </button>
+        </div>
+      </form>
+      {% block content %}
+      {% endblock %}
+    </div>
+  </div>
+  <footer class="footer">
+    <p>Hosted on <a href="https://toolforge.org">Wikimedia Toolforge</a>.</p>
+  </footer>
 </body>
 </html>
