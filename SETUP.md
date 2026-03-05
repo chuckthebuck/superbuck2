@@ -1,13 +1,13 @@
 # Top-level setup guide
 
-This guide helps you run one or both projects in this repository.
+This guide helps you run the rollback tooling in this repository.
 
 ## 1) Project map
 
 - `bucksaltbot/` (Python + Node + Redis + MariaDB)
-- `unbuckbot/` (Python/FastAPI; Toolforge-oriented)
+- `unbuckbot/userscript/` (Wikimedia Commons userscript only)
 
-## 2) One-command setup (both directories)
+## 2) One-command setup
 
 From repo root:
 
@@ -43,46 +43,9 @@ Useful flags:
    ./scripts/run_dev_env.sh
    ```
 
-## 4) Setup: unbuckbot
+## 4) Setup: Commons userscript
 
-1. Enter directory:
-   ```bash
-   cd unbuckbot
-   ```
-2. Prepare Python environment and env vars:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   cp .env.example .env
-   ```
-3. Install dependencies and run:
-   ```bash
-   python3 -m pip install -r requirements.txt
-   ./toolforge/start.sh
-   ```
-
-## 5) Database isolation verification (separate directories)
-
-The repository layout itself does not cause DB conflicts; configuration does.
-
-### What was verified
-
-- `bucksaltbot` database connections are explicit and scoped to:
-  - host from `cnf.py` config (`localhost` / `mariadb` / Toolforge host), and
-  - database name `<username>__match_and_split` in `toolsdb.py`.
-- `unbuckbot` has no SQL/SQLite initialization in `backend/app.py`; it uses in-memory state containers (`sessions`, `jobs`, etc.).
-
-### Practical implication
-
-Running both directories side by side is safe from accidental shared-DB collisions unless you manually point both apps at the same external service and add new overlapping schema behavior.
-
-### Quick checks you can rerun
-
-From repo root:
-
-```bash
-rg -n "database=|CREATE DATABASE|\.db|sqlite|sqlalchemy" bucksaltbot unbuckbot
-pytest -q bucksaltbot/tests/test_toolsdb.py
-```
-
-These checks confirm explicit DB naming in `bucksaltbot` and expected DB helper behavior.
+1. Open `unbuckbot/userscript/mass-rollback.user.js`.
+2. Set `TOOL_ENDPOINT` to your bucksaltbot deployment URL.
+3. Install the userscript in your browser userscript manager.
+4. On Commons, use the "Mass rollback" action; it authenticates with bucksaltbot and submits jobs to bucksaltbot's rollback API.
