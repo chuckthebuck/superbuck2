@@ -26,10 +26,9 @@ if is_production:
     try:
         with open(manifest_path, "r") as content:
             manifest = json.load(content)
-    except OSError as exception:
-        raise OSError(
-            f"Manifest file not found. Run `npm run build`."
-        ) from exception
+    except OSError:
+        # Allow app boot without compiled frontend assets so API/UI routes are still reachable.
+        manifest = {}
 
 
 # Add `asset()` function and `is_production` to app context.
@@ -39,10 +38,10 @@ def add_context():
         return f"{VITE_ORIGIN}/assets/{file_path}"
 
     def prod_asset(file_path):
-        try:
-            return f"/assets/{manifest[file_path]['file']}"
-        except:
-            return "asset-not-found"
+        asset_meta = manifest.get(file_path)
+        if asset_meta and asset_meta.get('file'):
+            return f"/assets/{asset_meta['file']}"
+        return f"/assets/{file_path}"
 
     return {
         "asset": prod_asset if is_production else dev_asset,

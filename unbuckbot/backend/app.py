@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 import secrets
@@ -12,19 +11,12 @@ from typing import Any
 from urllib.parse import urlencode
 
 import httpx
-import mwapi
-from aiolimiter import AsyncLimiter
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 WIKIMEDIA_AUTH_BASE = "https://meta.wikimedia.org/w/rest.php/oauth2"
-COMMONS_HOST = "https://commons.wikimedia.org"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
-USER_AGENT = os.environ.get(
-    "TOOL_USER_AGENT",
-    "unbuckbot-massrollback/1.0 (https://toolforge.org; bot-assisted rollback tool)",
-)
 
 
 @dataclass
@@ -87,9 +79,6 @@ class RollbackJob:
     status: str = "queued"
     wiki: str = "commonswiki"
     created_at: float = field(default_factory=time.time)
-    completed: int = 0
-    failed: int = 0
-    results: list[dict[str, Any]] = field(default_factory=list)
 
 
 class AppState:
@@ -97,14 +86,21 @@ class AppState:
         self.sessions: dict[str, Session] = {}
         self.oauth_states: dict[str, float] = {}
         self.jobs: dict[str, RollbackJob] = {}
-        self.queue: asyncio.Queue[str] = asyncio.Queue()
-        self.global_limiter = AsyncLimiter(max_rate=6, time_period=1)
         self.per_user_timestamps: dict[str, deque[float]] = defaultdict(deque)
-        self.worker_started = False
 
 
 state = AppState()
 app = FastAPI(title="Toolforge Commons Async Mass Rollback")
+
+
+def _get_state() -> AppState:
+    """Return the module-level AppState.
+
+    auth_callback accepts a ``state`` query-parameter (the OAuth CSRF token)
+    which shadows the module-level ``state`` object inside the function body.
+    Using this helper avoids that name collision.
+    """
+    return state
 
 
 class RollbackItem(BaseModel):
@@ -125,14 +121,6 @@ def _requester_policy(username: str) -> RequesterPolicy:
     if WHITELIST_ONLY:
         raise HTTPException(status_code=403, detail="Requester is not whitelisted for this tool")
     return DEFAULT_POLICY
-
-
-def _bot_credentials() -> tuple[str, str]:
-    bot_username = os.environ.get("BOT_USERNAME", "").strip()
-    bot_password = os.environ.get("BOT_PASSWORD", "").strip()
-    if not bot_username or not bot_password:
-        raise RuntimeError("BOT_USERNAME and BOT_PASSWORD are required for bot-account rollback")
-    return bot_username, bot_password
 
 
 async def require_session(request: Request) -> Session:
@@ -208,7 +196,8 @@ async def auth_callback(code: str, state_token: str | None = None, state: str | 
     if not incoming_state:
         raise HTTPException(status_code=400, detail="Missing OAuth state")
 
-    expires = state.oauth_states.pop(incoming_state, 0)
+    app_state = _get_state()
+    expires = app_state.oauth_states.pop(incoming_state, 0)
     if expires < time.time():
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
 
@@ -235,7 +224,7 @@ async def auth_callback(code: str, state_token: str | None = None, state: str | 
         raise HTTPException(status_code=403, detail="Account does not have rollback right on Commons")
 
     sid = secrets.token_urlsafe(32)
-    state.sessions[sid] = Session(
+    app_state.sessions[sid] = Session(
         session_id=sid,
         access_token=access_token,
         username=username,
@@ -281,7 +270,6 @@ async def create_job(payload: CreateJobRequest, session: Session = Depends(requi
         dry_run=payload.dry_run,
     )
     state.jobs[job_id] = job
-    await state.queue.put(job_id)
     return {"job_id": job_id}
 
 
@@ -300,109 +288,5 @@ async def get_job(job_id: str, session: Session = Depends(require_session)) -> d
         "dry_run": job.dry_run,
         "status": job.status,
         "total": len(job.tasks),
-        "completed": job.completed,
-        "failed": job.failed,
-        "results": job.results[-100:],
     }
 
-
-def _bot_session() -> mwapi.Session:
-    bot_username, bot_password = _bot_credentials()
-    wiki = mwapi.Session(COMMONS_HOST, user_agent=USER_AGENT)
-    wiki.login(bot_username, bot_password)
-    return wiki
-
-
-def _commons_rollback_with_bot(requested_by: str, task: RollbackTask) -> dict[str, Any]:
-    wiki = _bot_session()
-    token_data = wiki.get(action="query", meta="tokens", type="rollback")
-    rollback_token = token_data["query"]["tokens"]["rollbacktoken"]
-
-    result = wiki.post(
-        action="rollback",
-        title=task.title,
-        user=task.user,
-        token=rollback_token,
-        summary=(
-            task.summary
-            or f"Mass rollback via Toolforge bot; requested-by={requested_by}"
-        ),
-        markbot=1,
-        bot=1,
-    )
-
-    if "error" in result:
-        return {"ok": False, "title": task.title, "requested_by": requested_by, "error": result["error"]}
-    return {
-        "ok": True,
-        "title": task.title,
-        "requested_by": requested_by,
-        "result": result.get("rollback", {}),
-    }
-
-
-async def _rollback_one(requested_by: str, task: RollbackTask) -> dict[str, Any]:
-    return await asyncio.to_thread(_commons_rollback_with_bot, requested_by, task)
-
-
-def _dry_run_result(requested_by: str, task: RollbackTask) -> dict[str, Any]:
-    return {
-        "ok": True,
-        "title": task.title,
-        "requested_by": requested_by,
-        "dry_run": True,
-        "result": {
-            "simulated": True,
-            "user": task.user,
-            "summary": task.summary or f"Mass rollback via Toolforge bot; requested-by={requested_by}",
-        },
-    }
-
-
-async def job_worker() -> None:
-    while True:
-        job_id = await state.queue.get()
-        job = state.jobs.get(job_id)
-        if not job:
-            continue
-
-        owner_session = next((s for s in state.sessions.values() if s.username == job.owner), None)
-        if not owner_session:
-            job.status = "failed"
-            job.failed = len(job.tasks)
-            job.results.append({"ok": False, "error": "Owner session expired before execution"})
-            continue
-
-        if "rollback" not in owner_session.rights:
-            job.status = "failed"
-            job.failed = len(job.tasks)
-            job.results.append({"ok": False, "error": "Owner no longer has Commons rollback rights"})
-            continue
-
-        job.status = "running"
-        for task in job.tasks:
-            async with state.global_limiter:
-                try:
-                    item_result = _dry_run_result(job.requested_by, task) if job.dry_run else await _rollback_one(job.requested_by, task)
-                except Exception as exc:  # noqa: BLE001
-                    item_result = {
-                        "ok": False,
-                        "title": task.title,
-                        "requested_by": job.requested_by,
-                        "error": str(exc),
-                    }
-
-            job.results.append(item_result)
-            if item_result.get("ok"):
-                job.completed += 1
-            else:
-                job.failed += 1
-
-        job.status = "completed"
-
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    if not state.worker_started:
-        asyncio.create_task(job_worker())
-        state.worker_started = True
