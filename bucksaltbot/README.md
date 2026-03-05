@@ -4,6 +4,8 @@ The match and split tool provides a GUI to initiate jobs on the server that take
 
 # Local setup
 
+> Note: Match/split edit automation is intentionally disabled in this deployment to avoid accidental buggy mass edits.
+
 ## Prerequisites
 
 - Python
