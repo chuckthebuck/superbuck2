@@ -7,7 +7,22 @@ This guide helps you run one or both projects in this repository.
 - `bucksaltbot/` (Python + Node + Redis + MariaDB)
 - `unbuckbot/` (Python/FastAPI; Toolforge-oriented)
 
-## 2) Setup: bucksaltbot
+## 2) One-command setup (both directories)
+
+From repo root:
+
+```bash
+./scripts/setup_all.sh
+```
+
+Useful flags:
+
+```bash
+./scripts/setup_all.sh --no-install-deps
+./scripts/setup_all.sh --no-venv
+```
+
+## 3) Setup: bucksaltbot
 
 1. Enter directory:
    ```bash
@@ -28,7 +43,7 @@ This guide helps you run one or both projects in this repository.
    ./scripts/run_dev_env.sh
    ```
 
-## 3) Setup: unbuckbot
+## 4) Setup: unbuckbot
 
 1. Enter directory:
    ```bash
@@ -46,7 +61,7 @@ This guide helps you run one or both projects in this repository.
    ./toolforge/start.sh
    ```
 
-## 4) Database isolation verification (separate directories)
+## 5) Database isolation verification (separate directories)
 
 The repository layout itself does not cause DB conflicts; configuration does.
 

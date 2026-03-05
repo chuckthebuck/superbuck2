@@ -20,6 +20,12 @@ Because of that split, keeping both projects in separate directories does **not*
 
 For full setup instructions, see [`SETUP.md`](./SETUP.md).
 
+Quick start for both directories:
+
+```bash
+./scripts/setup_all.sh
+```
+
 ## Continuous integration
 
 GitHub Actions CI now runs across the whole monorepo:
